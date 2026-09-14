@@ -3,16 +3,20 @@ import { chooseBestMessage, chooseHealingItem, chooseUpgrade } from './strategy.
 import type { GameState } from './types.js';
 
 export class GameRunner {
-  constructor(private readonly api = new MugloarApiClient()) {}
+  constructor(
+      private readonly api = new MugloarApiClient(),
+      private readonly onUpdate?: (state: GameState) => void,
+      ) {}
 
   async run(): Promise<GameState> {
     let state = await this.api.startGame();
-    console.log(`Started game ${state.gameId}: lives=${state.lives}, gold=${state.gold}, score=${state.score}`);
+    this.onUpdate?.(state);
 
     let consecutiveNoMissionTurns = 0;
 
     while (state.lives > 0) {
       state = await this.maybeShop(state);
+      this.onUpdate?.(state);
       if (state.lives <= 0) break;
 
       const messages = await this.api.getMessages(state.gameId);
@@ -31,6 +35,7 @@ export class GameRunner {
           if (!fallback) break;
           const result = await this.api.solve(state.gameId, fallback.adId);
           state = { ...state, ...result };
+          this.onUpdate?.(state);
           consecutiveNoMissionTurns = 0;
           this.logSolve(fallback.message, fallback.probability, result.success, state);
         }
@@ -40,6 +45,7 @@ export class GameRunner {
       consecutiveNoMissionTurns = 0;
       const result = await this.api.solve(state.gameId, selected.adId);
       state = { ...state, ...result };
+      this.onUpdate?.(state);
       this.logSolve(selected.message, selected.probability, result.success, state);
     }
 
