@@ -7,7 +7,9 @@
     "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/index.js",
-    "test": "vitest run"
+    "test": "vitest run test",
+    "test:client": "npm --prefix client test",
+    "test:all": "npm test && npm run test:client"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

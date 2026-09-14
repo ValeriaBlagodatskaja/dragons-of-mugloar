@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { apiUrl } from "../api";
 
 export const useGameStore = defineStore("game", {
   state: () => ({
@@ -7,9 +8,8 @@ export const useGameStore = defineStore("game", {
     lives: 3,
     gold: 0,
     level: 0,
-    status: "idle",
+    manualStatus: "idle" as "idle" | "loading" | "running" | "error",
     error: null as string | null,
-    backendStatus: "unknown",
     messages: [] as Array<{
       missionId: string;
       message: string;
@@ -18,7 +18,7 @@ export const useGameStore = defineStore("game", {
       expiresIn: number;
       probability?: string;
     }>,
-    gameStatus: "idle" as "idle" | "running" | "finished" | "error",
+    autoStatus: "idle" as "idle" | "running" | "finished" | "error",
     shopItems: [] as Array<{
       id: string;
       name: string;
@@ -27,12 +27,12 @@ export const useGameStore = defineStore("game", {
   }),
 
   actions: {
-    async startAdventure() {
+    async startManualGame() {
       try {
-        this.status = "loading";
+        this.manualStatus = "loading";
         this.error = null;
 
-        const response = await fetch("http://localhost:3000/api/game/start", {
+        const response = await fetch(apiUrl("/api/game/start"), {
           method: "POST",
         });
 
@@ -47,53 +47,33 @@ export const useGameStore = defineStore("game", {
         this.lives = game.lives;
         this.gold = game.gold;
         this.level = game.level;
-        this.status = "running";
+        this.manualStatus = "running";
         await Promise.all([this.loadMessages(), this.loadShop()]);
       } catch (error) {
-        this.status = "error";
+        this.manualStatus = "error";
         this.error = error instanceof Error ? error.message : "Unknown error";
       }
     },
 
-    async checkBackend() {
-      try {
-        const response = await fetch("http://localhost:3000/api/health");
-
-        if (!response.ok) {
-          throw new Error("Backend is unavailable");
-        }
-
-        const data = await response.json();
-        this.backendStatus = data.status;
-        this.error = null;
-      } catch (error) {
-        this.backendStatus = "error";
-        this.error = error instanceof Error ? error.message : "Unknown error";
-      }
-    },
-
-    async startGame() {
+    async startAutoGame() {
       try {
         this.error = null;
-        this.gameStatus = "running";
+        this.autoStatus = "running";
 
-        const response = await fetch(
-          "http://localhost:3000/api/auto-game/start",
-          {
-            method: "POST",
-          },
-        );
+        const response = await fetch(apiUrl("/api/auto-game/start"), {
+          method: "POST",
+        });
 
         if (!response.ok) {
           throw new Error("Could not start the adventure");
         }
 
         const data = await response.json();
-        this.gameStatus = data.status;
+        this.autoStatus = data.status;
 
         await this.trackGameProgress();
       } catch (error) {
-        this.gameStatus = "error";
+        this.autoStatus = "error";
         this.error =
           error instanceof Error
             ? error.message
@@ -102,11 +82,9 @@ export const useGameStore = defineStore("game", {
     },
 
     async trackGameProgress() {
-      while (this.gameStatus === "running") {
+      while (this.autoStatus === "running") {
         try {
-          const response = await fetch(
-            "http://localhost:3000/api/auto-game/status",
-          );
+          const response = await fetch(apiUrl("/api/auto-game/status"));
 
           if (!response.ok) {
             throw new Error("Could not update the game progress");
@@ -114,7 +92,7 @@ export const useGameStore = defineStore("game", {
 
           const data = await response.json();
 
-          this.gameStatus = data.status;
+          this.autoStatus = data.status;
 
           if (data.state) {
             this.gameId = data.state.gameId;
@@ -128,7 +106,7 @@ export const useGameStore = defineStore("game", {
             await new Promise((resolve) => setTimeout(resolve, 500));
           }
         } catch (error) {
-          this.gameStatus = "error";
+          this.autoStatus = "error";
           this.error =
             error instanceof Error
               ? error.message
@@ -146,7 +124,7 @@ export const useGameStore = defineStore("game", {
 
       try {
         const response = await fetch(
-          `http://localhost:3000/api/game/${this.gameId}/messages`,
+          apiUrl(`/api/game/${this.gameId}/messages`),
         );
 
         if (!response.ok) {
@@ -170,7 +148,7 @@ export const useGameStore = defineStore("game", {
         this.error = null;
 
         const response = await fetch(
-          `http://localhost:3000/api/game/${this.gameId}/missions/${missionId}/solve`,
+          apiUrl(`/api/game/${this.gameId}/missions/${missionId}/solve`),
           {
             method: "POST",
           },
@@ -199,9 +177,7 @@ export const useGameStore = defineStore("game", {
       }
 
       try {
-        const response = await fetch(
-          `http://localhost:3000/api/game/${this.gameId}/shop`,
-        );
+        const response = await fetch(apiUrl(`/api/game/${this.gameId}/shop`));
 
         if (!response.ok) {
           throw new Error("Could not load the shop items");
@@ -227,7 +203,7 @@ export const useGameStore = defineStore("game", {
         this.error = null;
 
         const response = await fetch(
-          `http://localhost:3000/api/game/${this.gameId}/shop/${itemId}/buy`,
+          apiUrl(`/api/game/${this.gameId}/shop/${itemId}/buy`),
           {
             method: "POST",
           },

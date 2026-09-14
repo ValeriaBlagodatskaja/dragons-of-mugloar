@@ -67,11 +67,13 @@ const getRiskClass = (probability?: string) => {
         <p>Pick missions and buy upgrades from the shop</p>
 
         <button
-          @click="gameStore.startAdventure"
-          :disabled="gameStore.status === 'loading'"
+          @click="gameStore.startManualGame"
+          :disabled="gameStore.manualStatus === 'loading'"
         >
           {{
-            gameStore.status === "loading" ? "Starting..." : "Start New Game"
+            gameStore.manualStatus === "loading"
+              ? "Starting..."
+              : "Start New Game"
           }}
         </button>
         <div v-if="gameStore.gameId" class="actions">
@@ -84,17 +86,17 @@ const getRiskClass = (probability?: string) => {
         <p>Let the strategy play the game automatically</p>
 
         <button
-          @click="gameStore.startGame"
-          :disabled="gameStore.gameStatus === 'running'"
+          @click="gameStore.startAutoGame"
+          :disabled="gameStore.autoStatus === 'running'"
         >
           {{
-            gameStore.gameStatus === "running"
+            gameStore.autoStatus === "running"
               ? "Playing..."
               : "Start Auto Game"
           }}
         </button>
 
-        <p class="status">Status: {{ gameStore.gameStatus }}</p>
+        <p class="status">Status: {{ gameStore.autoStatus }}</p>
       </article>
     </section>
 
