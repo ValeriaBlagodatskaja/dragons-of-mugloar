@@ -1,12 +1,14 @@
 import cors from 'cors'
 import express from 'express'
 
+import { MugloarApiClient } from './apiClient.js'
 import { GameRunner } from './gameRunner.js'
-import type { GameState } from './types.js'
 import { chooseBestMessage } from './strategy.js'
+import type { GameState } from './types.js'
 
 const app = express()
 const port = 3000
+const api = new MugloarApiClient()
 let autoGameState: GameState | null = null
 let autoGameStatus: 'idle' | 'running' | 'finished' | 'error' = 'idle'
 
@@ -19,20 +21,8 @@ app.get('/api/health', (_req, res) => {
 
 app.post('/api/game/start', async (_req, res) => {
     try {
-        const game = await fetch('https://dragonsofmugloar.com/api/v2/game/start', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-            },
-        })
-
-        if (!game.ok) {
-            throw new Error(`Mugloar API returned ${game.status}`)
-        }
-
-        const data = await game.json()
-
-        res.json(data)
+        const game = await api.startGame()
+        res.json(game)
     } catch (error) {
         res.status(500).json({
             error: error instanceof Error ? error.message : 'Failed to start game',
@@ -44,26 +34,15 @@ app.post('/api/game/:gameId/missions/:missionId/solve', async (req, res) => {
     try {
         const { gameId, missionId } = req.params
 
-        const response = await fetch(
-            `https://dragonsofmugloar.com/api/v2/${gameId}/solve/${missionId}`,
-            {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                },
-            },
-        )
-
-        if (!response.ok) {
-            throw new Error(`Mugloar API returned ${response.status}`)
-        }
-
-        const result = await response.json()
+        const result = await api.solve(gameId, missionId)
 
         res.json(result)
     } catch (error) {
         res.status(500).json({
-            error: error instanceof Error ? error.message : 'Failed to solve mission',
+            error:
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to solve mission',
         })
     }
 })
@@ -72,27 +51,7 @@ app.get('/api/game/:gameId/messages', async (req, res) => {
     try {
         const { gameId } = req.params
 
-        const response = await fetch(
-            `https://dragonsofmugloar.com/api/v2/${gameId}/messages`,
-            {
-                headers: {
-                    Accept: 'application/json',
-                },
-            },
-        )
-
-        if (!response.ok) {
-            throw new Error(`Mugloar API returned ${response.status}`)
-        }
-
-        const messages = await response.json() as Array<{
-            adId: string
-            message: string
-            reward: string
-            expiresIn: number
-            probability?: string
-        }>
-
+        const messages = await api.getMessages(gameId)
         const recommendedMessage = chooseBestMessage(messages)
 
         const mappedMessages = messages.map(({ adId, ...message }) => ({
@@ -104,7 +63,10 @@ app.get('/api/game/:gameId/messages', async (req, res) => {
         res.json(mappedMessages)
     } catch (error) {
         res.status(500).json({
-            error: error instanceof Error ? error.message : 'Failed to load missions',
+            error:
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to load missions',
         })
     }
 })
@@ -113,27 +75,15 @@ app.get('/api/game/:gameId/shop', async (req, res) => {
     try {
         const { gameId } = req.params
 
-        const response = await fetch(
-            `https://dragonsofmugloar.com/api/v2/${gameId}/shop`,
-            {
-                headers: {
-                    Accept: 'application/json',
-                },
-            },
-        )
-
-        if (!response.ok) {
-            throw new Error(`Mugloar API returned ${response.status}`)
-        }
-
-        const items = await response.json()
+        const items = await api.getShop(gameId)
 
         res.json(items)
     } catch (error) {
         res.status(500).json({
-            error: error instanceof Error
-                ? error.message
-                : 'Could not load shop items',
+            error:
+                error instanceof Error
+                    ? error.message
+                    : 'Could not load shop items',
         })
     }
 })
@@ -142,28 +92,15 @@ app.post('/api/game/:gameId/shop/:itemId/buy', async (req, res) => {
     try {
         const { gameId, itemId } = req.params
 
-        const response = await fetch(
-            `https://dragonsofmugloar.com/api/v2/${gameId}/shop/buy/${itemId}`,
-            {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                },
-            },
-        )
-
-        if (!response.ok) {
-            throw new Error(`Mugloar API returned ${response.status}`)
-        }
-
-        const result = await response.json()
+        const result = await api.buy(gameId, itemId)
 
         res.json(result)
     } catch (error) {
         res.status(500).json({
-            error: error instanceof Error
-                ? error.message
-                : 'Could not purchase the item',
+            error:
+                error instanceof Error
+                    ? error.message
+                    : 'Could not purchase the item',
         })
     }
 })
