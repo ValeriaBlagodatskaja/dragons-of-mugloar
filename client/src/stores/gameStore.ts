@@ -38,15 +38,32 @@ export const useGameStore = defineStore("game", {
       livesGained: number;
       levelsGained: number;
     },
+    gameOver: false,
   }),
 
   actions: {
+    closeGameOver() {
+      this.gameOver = false;
+      this.gameId = null;
+      this.score = 0;
+      this.gold = 0;
+      this.lives = 3;
+      this.level = 0;
+      this.messages = [];
+      this.manualStatus = "idle";
+      this.autoStatus = "idle";
+      this.error = null;
+      this.missionResult = null;
+      this.purchaseResult = null;
+    },
+
     async startManualGame() {
       try {
         this.manualStatus = "loading";
         this.error = null;
         this.missionResult = null;
         this.purchaseResult = null;
+        this.gameOver = false;
 
         const response = await fetch(apiUrl("/api/game/start"), {
           method: "POST",
@@ -74,6 +91,10 @@ export const useGameStore = defineStore("game", {
     async startAutoGame() {
       try {
         this.error = null;
+        this.gameOver = false;
+        this.missionResult = null;
+        this.purchaseResult = null;
+        this.messages = [];
         this.autoStatus = "running";
 
         const response = await fetch(apiUrl("/api/auto-game/start"), {
@@ -116,6 +137,10 @@ export const useGameStore = defineStore("game", {
             this.lives = data.state.lives;
             this.gold = data.state.gold;
             this.level = data.state.level;
+
+            if (data.state.lives === 0) {
+              this.gameOver = true;
+            }
           }
 
           if (data.status === "running") {
@@ -207,7 +232,12 @@ export const useGameStore = defineStore("game", {
           livesRemaining: result.lives,
         };
 
-        await this.loadMessages();
+        if (result.lives > 0) {
+          await this.loadMessages();
+        } else {
+          this.messages = [];
+          this.gameOver = true;
+        }
       } catch (error) {
         this.error = error instanceof Error ? error.message : "Unknown error";
       }

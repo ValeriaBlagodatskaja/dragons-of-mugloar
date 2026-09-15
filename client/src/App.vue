@@ -2,7 +2,8 @@
 import { useGameStore } from "./stores/gameStore";
 import GameNoticeModal from "./components/GameNoticeModal.vue";
 import PurchaseNoticeModal from "./components/PurchaseNoticeModal.vue";
-import { ref, computed } from "vue";
+import GameOverModal from "./components/GameOverModal.vue";
+import { ref, computed, nextTick, watch } from "vue";
 
 const gameStore = useGameStore();
 const isShopOpen = ref(false);
@@ -11,6 +12,24 @@ const sortedMissions = computed(() =>
   [...gameStore.messages].sort(
     (a, b) => Number(b.recommended) - Number(a.recommended),
   ),
+);
+
+const closeMissionResult = () => {
+  gameStore.missionResult = null;
+};
+
+watch(
+  () => gameStore.error,
+  async (error) => {
+    if (!error) return;
+
+    await nextTick();
+
+    document.querySelector(".error-notice")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  },
 );
 
 const getRiskClass = (probability?: string) => {
@@ -70,7 +89,10 @@ const getRiskClass = (probability?: string) => {
 
         <button
           @click="gameStore.startManualGame"
-          :disabled="gameStore.manualStatus === 'loading'"
+          :disabled="
+            gameStore.manualStatus === 'loading' ||
+            gameStore.autoStatus === 'running'
+          "
         >
           {{
             gameStore.manualStatus === "loading"
@@ -78,7 +100,7 @@ const getRiskClass = (probability?: string) => {
               : "Start New Game"
           }}
         </button>
-        <div v-if="gameStore.gameId" class="actions">
+        <div v-if="gameStore.gameId && gameStore.lives > 0" class="actions">
           <button @click="isShopOpen = true">Open Shop</button>
         </div>
       </article>
@@ -118,7 +140,15 @@ const getRiskClass = (probability?: string) => {
       :gold-gained="gameStore.missionResult.goldGained"
       :lives-lost="gameStore.missionResult.livesLost"
       :lives-remaining="gameStore.missionResult.livesRemaining"
-      @close="gameStore.missionResult = null"
+      @close="closeMissionResult"
+    />
+
+    <GameOverModal
+      v-if="gameStore.gameOver && !gameStore.missionResult"
+      :score="gameStore.score"
+      :gold="gameStore.gold"
+      :level="gameStore.level"
+      @close="gameStore.closeGameOver"
     />
 
     <PurchaseNoticeModal

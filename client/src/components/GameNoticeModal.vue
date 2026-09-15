@@ -20,7 +20,7 @@ defineEmits<{
       :class="success ? 'notice-success' : 'notice-failure'"
     >
       <div class="notice-icon">
-        {{ success ? "✓" : "×" }}
+        {{ success ? "✓" : "!" }}
       </div>
 
       <p class="notice-eyebrow">

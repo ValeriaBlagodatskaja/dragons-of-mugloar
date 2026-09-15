@@ -215,4 +215,95 @@ describe("gameStore", () => {
     expect(store.error).toBe("Purchase failed");
     expect(store.purchaseResult).toBeNull();
   });
+
+  it("ends the manual game when the last life is lost", async () => {
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+    store.lives = 1;
+    store.messages = [
+      {
+        missionId: "mission-1",
+        message: "Dangerous mission",
+        recommended: false,
+        reward: "100",
+        expiresIn: 3,
+        probability: "Gamble",
+      },
+    ];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: false,
+          message: "Mission failed",
+          score: 100,
+          lives: 0,
+          gold: 20,
+        }),
+      }),
+    );
+
+    await store.solveMission("mission-1");
+
+    expect(store.lives).toBe(0);
+    expect(store.gameOver).toBe(true);
+    expect(store.messages).toEqual([]);
+    expect(store.missionResult?.livesRemaining).toBe(0);
+  });
+
+  it("ends the auto game when no lives remain", async () => {
+    const store = useGameStore();
+
+    store.autoStatus = "running";
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          status: "finished",
+          state: {
+            gameId: "auto-game",
+            score: 1500,
+            lives: 0,
+            gold: 40,
+            level: 10,
+          },
+        }),
+      }),
+    );
+
+    await store.trackGameProgress();
+
+    expect(store.autoStatus).toBe("finished");
+    expect(store.score).toBe(1500);
+    expect(store.lives).toBe(0);
+    expect(store.gameOver).toBe(true);
+  });
+
+  it("resets the game state after game over", () => {
+    const store = useGameStore();
+
+    store.gameId = "finished-game";
+    store.score = 4272;
+    store.gold = 22;
+    store.lives = 0;
+    store.level = 30;
+    store.gameOver = true;
+    store.autoStatus = "finished";
+
+    store.closeGameOver();
+
+    expect(store.gameOver).toBe(false);
+    expect(store.gameId).toBeNull();
+    expect(store.score).toBe(0);
+    expect(store.gold).toBe(0);
+    expect(store.lives).toBe(3);
+    expect(store.level).toBe(0);
+    expect(store.autoStatus).toBe("idle");
+    expect(store.manualStatus).toBe("idle");
+  });
 });
