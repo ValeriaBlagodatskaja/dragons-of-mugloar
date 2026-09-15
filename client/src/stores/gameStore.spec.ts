@@ -73,6 +73,7 @@ describe("gameStore", () => {
         ok: true,
         json: async () => ({
           success: true,
+          message: "Mission completed",
           score: 250,
           lives: 3,
           gold: 40,
@@ -97,10 +98,64 @@ describe("gameStore", () => {
     expect(store.loadMessages).toHaveBeenCalledOnce();
   });
 
+  it("refreshes missions when the selected mission has expired", async () => {
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+
+    vi.spyOn(store, "loadMessages").mockResolvedValue();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 410,
+      }),
+    );
+
+    await store.solveMission("expired-mission");
+
+    expect(store.error).toBe(
+      "This mission has expired. Please choose another mission.",
+    );
+    expect(store.loadMessages).toHaveBeenCalledOnce();
+  });
+
+  it("refreshes missions when a mission cannot be completed", async () => {
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+
+    vi.spyOn(store, "loadMessages").mockResolvedValue();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+      }),
+    );
+
+    await store.solveMission("unavailable-mission");
+
+    expect(store.error).toBe(
+      "This mission could not be completed. Please choose another mission.",
+    );
+    expect(store.loadMessages).toHaveBeenCalledOnce();
+  });
+
   it("buys a shop item and updates the game state", async () => {
     const store = useGameStore();
 
     store.gameId = "test-game";
+    store.gold = 100;
+    store.shopItems = [
+      {
+        id: "hpot",
+        name: "Healing potion",
+        cost: 50,
+      },
+    ];
 
     vi.spyOn(store, "loadShop").mockResolvedValue();
 
@@ -109,9 +164,11 @@ describe("gameStore", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
+          shoppingSuccess: true,
           gold: 50,
           lives: 4,
-          level: 2,
+          level: 0,
+          turn: 1,
         }),
       }),
     );
@@ -120,7 +177,7 @@ describe("gameStore", () => {
 
     expect(store.gold).toBe(50);
     expect(store.lives).toBe(4);
-    expect(store.level).toBe(2);
+    expect(store.level).toBe(0);
     expect(store.error).toBeNull();
 
     expect(fetch).toHaveBeenCalledWith(
@@ -131,5 +188,31 @@ describe("gameStore", () => {
     );
 
     expect(store.loadShop).toHaveBeenCalledOnce();
+  });
+
+  it("handles a rejected shop purchase", async () => {
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+    store.gold = 100;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          shoppingSuccess: false,
+          gold: 100,
+          lives: 3,
+          level: 0,
+          turn: 1,
+        }),
+      }),
+    );
+
+    await store.buyItem("hpot");
+
+    expect(store.error).toBe("Purchase failed");
+    expect(store.purchaseResult).toBeNull();
   });
 });

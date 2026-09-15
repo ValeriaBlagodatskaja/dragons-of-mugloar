@@ -24,6 +24,20 @@ export const useGameStore = defineStore("game", {
       name: string;
       cost: number;
     }>,
+    missionResult: null as null | {
+      success: boolean;
+      message: string;
+      scoreGained: number;
+      goldGained: number;
+      livesLost: number;
+      livesRemaining: number;
+    },
+    purchaseResult: null as null | {
+      itemName: string;
+      goldSpent: number;
+      livesGained: number;
+      levelsGained: number;
+    },
   }),
 
   actions: {
@@ -31,6 +45,8 @@ export const useGameStore = defineStore("game", {
       try {
         this.manualStatus = "loading";
         this.error = null;
+        this.missionResult = null;
+        this.purchaseResult = null;
 
         const response = await fetch(apiUrl("/api/game/start"), {
           method: "POST",
@@ -147,6 +163,10 @@ export const useGameStore = defineStore("game", {
       try {
         this.error = null;
 
+        const previousScore = this.score;
+        const previousGold = this.gold;
+        const previousLives = this.lives;
+
         const response = await fetch(
           apiUrl(`/api/game/${this.gameId}/missions/${missionId}/solve`),
           {
@@ -155,6 +175,20 @@ export const useGameStore = defineStore("game", {
         );
 
         if (!response.ok) {
+          if (response.status === 400) {
+            await this.loadMessages();
+            throw new Error(
+              "This mission could not be completed. Please choose another mission.",
+            );
+          }
+
+          if (response.status === 410) {
+            await this.loadMessages();
+            throw new Error(
+              "This mission has expired. Please choose another mission.",
+            );
+          }
+
           throw new Error("Failed to solve mission");
         }
 
@@ -163,6 +197,15 @@ export const useGameStore = defineStore("game", {
         this.score = result.score;
         this.lives = result.lives;
         this.gold = result.gold;
+
+        this.missionResult = {
+          success: result.success,
+          message: result.message,
+          scoreGained: result.score - previousScore,
+          goldGained: result.gold - previousGold,
+          livesLost: Math.max(0, previousLives - result.lives),
+          livesRemaining: result.lives,
+        };
 
         await this.loadMessages();
       } catch (error) {
@@ -199,6 +242,11 @@ export const useGameStore = defineStore("game", {
         return;
       }
 
+      const item = this.shopItems.find((item) => item.id === itemId);
+      const previousGold = this.gold;
+      const previousLives = this.lives;
+      const previousLevel = this.level;
+
       try {
         this.error = null;
 
@@ -218,6 +266,17 @@ export const useGameStore = defineStore("game", {
         this.gold = result.gold;
         this.lives = result.lives;
         this.level = result.level;
+
+        if (!result.shoppingSuccess) {
+          throw new Error("Purchase failed");
+        }
+
+        this.purchaseResult = {
+          itemName: item?.name ?? "Item",
+          goldSpent: Math.max(0, previousGold - result.gold),
+          livesGained: Math.max(0, result.lives - previousLives),
+          levelsGained: Math.max(0, result.level - previousLevel),
+        };
 
         await this.loadShop();
       } catch (error) {

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useGameStore } from "./stores/gameStore";
+import GameNoticeModal from "./components/GameNoticeModal.vue";
+import PurchaseNoticeModal from "./components/PurchaseNoticeModal.vue";
 import { ref, computed } from "vue";
 
 const gameStore = useGameStore();
@@ -100,9 +102,33 @@ const getRiskClass = (probability?: string) => {
       </article>
     </section>
 
-    <p v-if="gameStore.error" class="error">
-      {{ gameStore.error }}
-    </p>
+    <div v-if="gameStore.error" class="error-notice">
+      <div class="error-notice-icon">!</div>
+
+      <div>
+        <strong>Something went wrong</strong>
+        <p>{{ gameStore.error }}</p>
+      </div>
+    </div>
+    <GameNoticeModal
+      v-if="gameStore.missionResult"
+      :success="gameStore.missionResult.success"
+      :message="gameStore.missionResult.message"
+      :score-gained="gameStore.missionResult.scoreGained"
+      :gold-gained="gameStore.missionResult.goldGained"
+      :lives-lost="gameStore.missionResult.livesLost"
+      :lives-remaining="gameStore.missionResult.livesRemaining"
+      @close="gameStore.missionResult = null"
+    />
+
+    <PurchaseNoticeModal
+      v-if="gameStore.purchaseResult"
+      :item-name="gameStore.purchaseResult.itemName"
+      :gold-spent="gameStore.purchaseResult.goldSpent"
+      :lives-gained="gameStore.purchaseResult.livesGained"
+      :levels-gained="gameStore.purchaseResult.levelsGained"
+      @close="gameStore.purchaseResult = null"
+    />
 
     <section v-if="gameStore.messages.length > 0" class="content-section">
       <h2>Available Missions</h2>
