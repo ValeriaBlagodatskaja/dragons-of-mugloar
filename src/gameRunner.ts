@@ -1,5 +1,5 @@
 import { MugloarApiClient } from './apiClient.js';
-import { chooseBestMessage, chooseHealingItem, chooseUpgrade } from './strategy.js';
+import { chooseBestMessage, chooseHealingItem, chooseUpgrade, chooseFallbackMessage } from './strategy.js';
 import type { GameState } from './types.js';
 
 export class GameRunner {
@@ -12,37 +12,20 @@ export class GameRunner {
     let state = await this.api.startGame();
     this.onUpdate?.(state);
 
-    let consecutiveNoMissionTurns = 0;
-
     while (state.lives > 0) {
       state = await this.maybeShop(state);
       this.onUpdate?.(state);
       if (state.lives <= 0) break;
 
       const messages = await this.api.getMessages(state.gameId);
-      const selected = chooseBestMessage(messages);
+      const selected =
+          chooseBestMessage(messages) ?? chooseFallbackMessage(messages);
 
       if (!selected) {
-        consecutiveNoMissionTurns += 1;
-        console.log(`Turn ${state.turn}: no sufficiently safe mission available.`);
-
-        // Avoid an infinite loop if the board repeatedly contains only bad tasks.
-        // In practice this threshold can be tuned after observing live API behaviour.
-        if (consecutiveNoMissionTurns >= 3) {
-          const fallback = [...messages]
-            .sort((a, b) => Number(b.reward) - Number(a.reward))[0];
-
-          if (!fallback) break;
-          const result = await this.api.solve(state.gameId, fallback.adId);
-          state = { ...state, ...result };
-          this.onUpdate?.(state);
-          consecutiveNoMissionTurns = 0;
-          this.logSolve(fallback.message, fallback.probability, result.success, state);
-        }
-        continue;
+        console.log(`Turn ${state.turn}: no suitable mission available.`);
+        break;
       }
 
-      consecutiveNoMissionTurns = 0;
       const result = await this.api.solve(state.gameId, selected.adId);
       state = { ...state, ...result };
       this.onUpdate?.(state);

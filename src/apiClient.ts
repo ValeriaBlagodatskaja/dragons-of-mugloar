@@ -2,6 +2,16 @@ import type { BuyResult, GameState, Message, ShopItem, SolveResult } from './typ
 
 const BASE_URL = 'https://dragonsofmugloar.com/api/v2';
 
+export class MugloarApiError extends Error {
+  constructor(
+      public readonly status: number,
+      message: string,
+  ) {
+    super(message);
+    this.name = 'MugloarApiError';
+  }
+}
+
 export class MugloarApiClient {
   private async request<T>(path: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${BASE_URL}${path}`, {
@@ -13,10 +23,13 @@ export class MugloarApiClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Mugloar API ${response.status}: ${response.statusText}`);
+      throw new MugloarApiError(
+          response.status,
+          `Mugloar API ${response.status}: ${response.statusText}`,
+      );
     }
 
-    return response.json() as Promise<T>;
+    return await response.json() as Promise<T>;
   }
 
   startGame(): Promise<GameState> {

@@ -1,7 +1,7 @@
 import cors from 'cors'
 import express from 'express'
 
-import { MugloarApiClient } from './apiClient.js'
+import { MugloarApiClient, MugloarApiError } from './apiClient.js'
 import { GameRunner } from './gameRunner.js'
 import { chooseBestMessage } from './strategy.js'
 import type { GameState } from './types.js'
@@ -38,11 +38,31 @@ app.post('/api/game/:gameId/missions/:missionId/solve', async (req, res) => {
 
         res.json(result)
     } catch (error) {
+        console.error('Failed to solve mission:', error)
+
+        if (error instanceof MugloarApiError) {
+            if (error.status === 410) {
+                res.status(410).json({
+                    error: 'This mission is no longer available',
+                })
+                return
+            }
+
+            if (error.status === 400) {
+                res.status(400).json({
+                    error: 'This mission could not be completed',
+                })
+                return
+            }
+
+            res.status(error.status).json({
+                error: 'The game service could not complete this mission',
+            })
+            return
+        }
+
         res.status(500).json({
-            error:
-                error instanceof Error
-                    ? error.message
-                    : 'Failed to solve mission',
+            error: 'Failed to solve mission',
         })
     }
 })

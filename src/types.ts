@@ -33,7 +33,7 @@ export interface ShopItem {
 }
 
 export interface BuyResult {
-  shoppingSuccess: string;
+  shoppingSuccess: boolean;
   gold: number;
   lives: number;
   level: number;

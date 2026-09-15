@@ -39,9 +39,14 @@ export function chooseBestMessage(messages: Message[]): Message | undefined {
     .sort((a, b) => missionScore(b) - missionScore(a))[0];
 }
 
+export function chooseFallbackMessage(messages: Message[]): Message | undefined {
+  return [...messages]
+      .filter((message) => difficultyScore(message.probability) >= 20)
+      .sort((a, b) => missionScore(b) - missionScore(a))[0];
+}
+
 function isHealingItem(item: ShopItem): boolean {
-  const name = item.name.toLowerCase();
-  return name.includes('heal') || name.includes('health') || name.includes('life') || name.includes('potion');
+  return item.id === 'hpot';
 }
 
 export function chooseHealingItem(items: ShopItem[], gold: number): ShopItem | undefined {
@@ -51,7 +56,7 @@ export function chooseHealingItem(items: ShopItem[], gold: number): ShopItem | u
 }
 
 export function chooseUpgrade(items: ShopItem[], gold: number): ShopItem | undefined {
-  // Keep a safety reserve for healing. Prefer the best affordable non-healing item.
+  // Keep a safety reserve for healing and spend excess gold on an affordable upgrade.
   const reserve = 75;
   return [...items]
     .filter((item) => item.cost <= Math.max(0, gold - reserve) && !isHealingItem(item))
