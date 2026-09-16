@@ -18,7 +18,7 @@ The automatic player:
 2. Prioritizes safe missions and chooses the highest-reward option among them.
 3. Uses medium-risk missions only when no safe option is available.
 4. Uses dangerous missions only as a last resort.
-5. Preserves gold for healing until the 1,000-point target is reached, then buys upgrades when affordable.
+5. Prioritizes buying healing potions until the 1,000-point target is reached. After reaching the target, it buys healing when lives are low and spends excess gold on upgrades.
 6. Continues until the game ends.
 
 The strategy is separated from the API client and game runner so it can be tested independently. The same strategy is used to highlight a **Recommended** mission in manual mode.

@@ -53,6 +53,23 @@ export class GameRunner {
     private async maybeShop(state: GameState): Promise<GameState> {
         const items = await this.api.getShop(state.gameId);
 
+        // Before 1000 points, always prioritize healing potions.
+        if (state.score < 1000) {
+            const healingItem = chooseHealingItem(items, state.gold);
+
+            if (healingItem) {
+                const result = await this.api.buy(
+                    state.gameId,
+                    healingItem.id,
+                );
+
+                return {...state, ...result};
+            }
+
+            return state;
+        }
+
+        // After reaching 1000, heal only when lives are low.
         if (state.lives <= 2) {
             const healingItem = chooseHealingItem(items, state.gold);
 
@@ -66,11 +83,7 @@ export class GameRunner {
             }
         }
 
-        if (
-            state.score >= 1000 &&
-            state.lives >= 3 &&
-            state.gold >= 200
-        ) {
+        if (state.lives >= 3 && state.gold >= 200) {
             const upgrade = chooseUpgrade(items, state.gold);
 
             if (upgrade) {

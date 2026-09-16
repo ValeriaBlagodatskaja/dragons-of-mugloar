@@ -135,9 +135,47 @@ describe('GameRunner', () => {
         )
     })
 
-    it('buys a healing potion when lives are low', async () => {
+    it('buys a healing potion before reaching 1000 points regardless of lives', async () => {
         const state: GameState = {
             ...initialState,
+            score: 500,
+            lives: 5,
+            gold: 100,
+        }
+
+        const healingPotion: ShopItem = {
+            id: 'hpot',
+            name: 'Healing Potion',
+            cost: 50,
+        }
+
+        const buyResult: BuyResult = {
+            shoppingSuccess: true,
+            lives: 5,
+            gold: 50,
+            level: 0,
+            turn: 1,
+        }
+
+        api.startGame.mockResolvedValue(state)
+        api.getShop.mockResolvedValue([healingPotion])
+        api.buy.mockResolvedValue(buyResult)
+        api.getMessages.mockResolvedValue([])
+
+        const runner = new GameRunner(api as never)
+
+        await runner.run()
+
+        expect(api.buy).toHaveBeenCalledWith(
+            'game-123',
+            'hpot',
+        )
+    })
+
+    it('buys a healing potion after 1000 points when lives are low', async () => {
+        const state: GameState = {
+            ...initialState,
+            score: 1200,
             lives: 2,
             gold: 100,
         }
@@ -150,7 +188,7 @@ describe('GameRunner', () => {
 
         const buyResult: BuyResult = {
             shoppingSuccess: true,
-            lives: 0,
+            lives: 3,
             gold: 50,
             level: 0,
             turn: 1,
@@ -159,23 +197,16 @@ describe('GameRunner', () => {
         api.startGame.mockResolvedValue(state)
         api.getShop.mockResolvedValue([healingPotion])
         api.buy.mockResolvedValue(buyResult)
+        api.getMessages.mockResolvedValue([])
 
         const runner = new GameRunner(api as never)
 
-        const result = await runner.run()
+        await runner.run()
 
         expect(api.buy).toHaveBeenCalledWith(
             'game-123',
             'hpot',
         )
-
-        expect(api.getMessages).not.toHaveBeenCalled()
-
-        expect(result).toMatchObject({
-            lives: 0,
-            gold: 50,
-            turn: 1,
-        })
     })
 
     it('buys the best affordable upgrade after reaching 1000 points', async () => {
