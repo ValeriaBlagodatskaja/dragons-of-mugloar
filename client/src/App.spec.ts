@@ -49,6 +49,125 @@ describe("App", () => {
     expect(wrapper.text()).toContain("Recommended");
   });
 
+  it("disables mission actions while a mission is being solved", () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const store = useGameStore();
+
+    store.messages = [
+      {
+        missionId: "mission-1",
+        message: "Rescue the princess",
+        reward: "100",
+        expiresIn: 5,
+        probability: "Piece of cake",
+        recommended: true,
+      },
+      {
+        missionId: "mission-2",
+        message: "Fight the giant",
+        reward: "200",
+        expiresIn: 3,
+        probability: "Gamble",
+        recommended: false,
+      },
+    ];
+
+    store.solvingMissionId = "mission-1";
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+      },
+    });
+
+    const missionButtons = wrapper.findAll(".mission-card button");
+
+    expect(missionButtons).toHaveLength(2);
+
+    expect(missionButtons[0].text()).toBe("Solving...");
+    expect(missionButtons[0].attributes("disabled")).toBeDefined();
+
+    expect(missionButtons[1].text()).toBe("Solve");
+    expect(missionButtons[1].attributes("disabled")).toBeDefined();
+  });
+
+  it("disables shop actions while an item is being purchased", async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+    store.manualStatus = "running";
+    store.gold = 500;
+    store.shopItems = [
+      {
+        id: "hpot",
+        name: "Healing potion",
+        cost: 50,
+      },
+      {
+        id: "cs",
+        name: "Claw Sharpening",
+        cost: 100,
+      },
+    ];
+
+    store.buyingItemId = "hpot";
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+      },
+    });
+
+    await wrapper.get(".actions button").trigger("click");
+
+    const buyButtons = wrapper.findAll(".shop-card button");
+
+    expect(buyButtons).toHaveLength(2);
+
+    expect(buyButtons[0].text()).toBe("Buying...");
+    expect(buyButtons[0].attributes("disabled")).toBeDefined();
+
+    expect(buyButtons[1].text()).toBe("Buy");
+    expect(buyButtons[1].attributes("disabled")).toBeDefined();
+
+    expect(wrapper.text()).toContain(
+      "Purchasing an item advances the game by one turn",
+    );
+  });
+
+  it("disables auto play while a manual game is running", () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const store = useGameStore();
+
+    store.gameId = "manual-game";
+    store.manualStatus = "running";
+    store.autoStatus = "idle";
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+      },
+    });
+
+    const playCards = wrapper.findAll(".play-card");
+
+    const manualStartButton = playCards[0].find("button");
+    const autoStartButton = playCards[1].find("button");
+
+    expect(manualStartButton.attributes("disabled")).toBeDefined();
+    expect(autoStartButton.attributes("disabled")).toBeDefined();
+
+    expect(wrapper.text()).toContain("Open Shop");
+    expect(wrapper.text()).toContain("End Game");
+  });
+
   it("shows the game over modal and resets the game when trying again", async () => {
     const pinia = createPinia();
     setActivePinia(pinia);

@@ -39,31 +39,44 @@ export const useGameStore = defineStore("game", {
       levelsGained: number;
     },
     gameOver: false,
+    solvingMissionId: null as string | null,
+    buyingItemId: null as string | null,
   }),
 
   actions: {
-    closeGameOver() {
-      this.gameOver = false;
+    resetGameState() {
       this.gameId = null;
       this.score = 0;
       this.gold = 0;
       this.lives = 3;
       this.level = 0;
       this.messages = [];
-      this.manualStatus = "idle";
-      this.autoStatus = "idle";
+      this.shopItems = [];
       this.error = null;
       this.missionResult = null;
       this.purchaseResult = null;
+      this.gameOver = false;
+      this.solvingMissionId = null;
+      this.buyingItemId = null;
+    },
+
+    closeGameOver() {
+      this.resetGameState();
+      this.manualStatus = "idle";
+      this.autoStatus = "idle";
+    },
+
+    endManualGame() {
+      this.resetGameState();
+      this.manualStatus = "idle";
+      this.autoStatus = "idle";
     },
 
     async startManualGame() {
       try {
+        this.resetGameState();
+        this.autoStatus = "idle";
         this.manualStatus = "loading";
-        this.error = null;
-        this.missionResult = null;
-        this.purchaseResult = null;
-        this.gameOver = false;
 
         const response = await fetch(apiUrl("/api/game/start"), {
           method: "POST",
@@ -90,11 +103,8 @@ export const useGameStore = defineStore("game", {
 
     async startAutoGame() {
       try {
-        this.error = null;
-        this.gameOver = false;
-        this.missionResult = null;
-        this.purchaseResult = null;
-        this.messages = [];
+        this.resetGameState();
+        this.manualStatus = "idle";
         this.autoStatus = "running";
 
         const response = await fetch(apiUrl("/api/auto-game/start"), {
@@ -115,6 +125,27 @@ export const useGameStore = defineStore("game", {
           error instanceof Error
             ? error.message
             : "Something went wrong while starting the adventure";
+      }
+    },
+
+    async endAutoGame() {
+      try {
+        const response = await fetch(apiUrl("/api/auto-game/stop"), {
+          method: "POST",
+        });
+
+        if (!response.ok) {
+          throw new Error("Could not stop the automatic game");
+        }
+
+        this.resetGameState();
+        this.manualStatus = "idle";
+        this.autoStatus = "idle";
+      } catch (error) {
+        this.error =
+          error instanceof Error
+            ? error.message
+            : "Something went wrong while stopping the game";
       }
     },
 
@@ -185,12 +216,17 @@ export const useGameStore = defineStore("game", {
         return;
       }
 
+      if (this.solvingMissionId) {
+        return;
+      }
+
       try {
         this.error = null;
 
         const previousScore = this.score;
         const previousGold = this.gold;
         const previousLives = this.lives;
+        this.solvingMissionId = missionId;
 
         const response = await fetch(
           apiUrl(`/api/game/${this.gameId}/missions/${missionId}/solve`),
@@ -240,6 +276,8 @@ export const useGameStore = defineStore("game", {
         }
       } catch (error) {
         this.error = error instanceof Error ? error.message : "Unknown error";
+      } finally {
+        this.solvingMissionId = null;
       }
     },
 
@@ -272,6 +310,10 @@ export const useGameStore = defineStore("game", {
         return;
       }
 
+      if (this.buyingItemId) {
+        return;
+      }
+
       const item = this.shopItems.find((item) => item.id === itemId);
       const previousGold = this.gold;
       const previousLives = this.lives;
@@ -279,6 +321,7 @@ export const useGameStore = defineStore("game", {
 
       try {
         this.error = null;
+        this.buyingItemId = itemId;
 
         const response = await fetch(
           apiUrl(`/api/game/${this.gameId}/shop/${itemId}/buy`),
@@ -308,12 +351,14 @@ export const useGameStore = defineStore("game", {
           levelsGained: Math.max(0, result.level - previousLevel),
         };
 
-        await this.loadShop();
+        await Promise.all([this.loadShop(), this.loadMessages()]);
       } catch (error) {
         this.error =
           error instanceof Error
             ? error.message
             : "Something went wrong while purchasing the item";
+      } finally {
+        this.buyingItemId = null;
       }
     },
   },

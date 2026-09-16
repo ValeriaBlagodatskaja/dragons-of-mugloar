@@ -98,6 +98,21 @@ describe("gameStore", () => {
     expect(store.loadMessages).toHaveBeenCalledOnce();
   });
 
+  it("prevents solving another mission while a solve request is in progress", async () => {
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+    store.solvingMissionId = "mission-1";
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await store.solveMission("mission-2");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(store.solvingMissionId).toBe("mission-1");
+  });
+
   it("refreshes missions when the selected mission has expired", async () => {
     const store = useGameStore();
 
@@ -158,6 +173,7 @@ describe("gameStore", () => {
     ];
 
     vi.spyOn(store, "loadShop").mockResolvedValue();
+    vi.spyOn(store, "loadMessages").mockResolvedValue();
 
     vi.stubGlobal(
       "fetch",
@@ -188,6 +204,22 @@ describe("gameStore", () => {
     );
 
     expect(store.loadShop).toHaveBeenCalledOnce();
+    expect(store.loadMessages).toHaveBeenCalledOnce();
+  });
+
+  it("prevents another purchase while a shop request is in progress", async () => {
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+    store.buyingItemId = "hpot";
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await store.buyItem("cs");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(store.buyingItemId).toBe("hpot");
   });
 
   it("handles a rejected shop purchase", async () => {
@@ -284,6 +316,69 @@ describe("gameStore", () => {
     expect(store.gameOver).toBe(true);
   });
 
+  it("ends a manual game and resets the game state", () => {
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+    store.score = 850;
+    store.gold = 120;
+    store.lives = 2;
+    store.level = 5;
+    store.manualStatus = "running";
+    store.messages = [
+      {
+        missionId: "mission-1",
+        message: "Test mission",
+        recommended: true,
+        reward: "50",
+        expiresIn: 3,
+        probability: "Sure thing",
+      },
+    ];
+
+    store.endManualGame();
+
+    expect(store.gameId).toBeNull();
+    expect(store.score).toBe(0);
+    expect(store.gold).toBe(0);
+    expect(store.lives).toBe(3);
+    expect(store.level).toBe(0);
+    expect(store.messages).toEqual([]);
+    expect(store.manualStatus).toBe("idle");
+    expect(store.autoStatus).toBe("idle");
+  });
+
+  it("stops an automatic game and resets the game state", async () => {
+    const store = useGameStore();
+
+    store.gameId = "auto-game";
+    store.score = 1200;
+    store.gold = 80;
+    store.lives = 2;
+    store.level = 10;
+    store.autoStatus = "running";
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await store.endAutoGame();
+
+    expect(fetchMock).toHaveBeenCalledWith(apiUrl("/api/auto-game/stop"), {
+      method: "POST",
+    });
+
+    expect(store.gameId).toBeNull();
+    expect(store.score).toBe(0);
+    expect(store.gold).toBe(0);
+    expect(store.lives).toBe(3);
+    expect(store.level).toBe(0);
+    expect(store.autoStatus).toBe("idle");
+    expect(store.manualStatus).toBe("idle");
+  });
+
   it("resets the game state after game over", () => {
     const store = useGameStore();
 
@@ -295,6 +390,8 @@ describe("gameStore", () => {
     store.gameOver = true;
     store.autoStatus = "finished";
 
+    store.shopItems = [{ id: "hpot", name: "Healing potion", cost: 50 }];
+
     store.closeGameOver();
 
     expect(store.gameOver).toBe(false);
@@ -305,5 +402,6 @@ describe("gameStore", () => {
     expect(store.level).toBe(0);
     expect(store.autoStatus).toBe("idle");
     expect(store.manualStatus).toBe("idle");
+    expect(store.shopItems).toEqual([]);
   });
 });

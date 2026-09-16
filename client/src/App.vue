@@ -91,6 +91,7 @@ const getRiskClass = (probability?: string) => {
           @click="gameStore.startManualGame"
           :disabled="
             gameStore.manualStatus === 'loading' ||
+            gameStore.manualStatus === 'running' ||
             gameStore.autoStatus === 'running'
           "
         >
@@ -100,8 +101,17 @@ const getRiskClass = (probability?: string) => {
               : "Start New Game"
           }}
         </button>
-        <div v-if="gameStore.gameId && gameStore.lives > 0" class="actions">
+        <div
+          v-if="
+            gameStore.gameId &&
+            gameStore.lives > 0 &&
+            gameStore.manualStatus === 'running' &&
+            gameStore.autoStatus !== 'running'
+          "
+          class="actions"
+        >
           <button @click="isShopOpen = true">Open Shop</button>
+          <button @click="gameStore.endManualGame">End Game</button>
         </div>
       </article>
 
@@ -111,7 +121,10 @@ const getRiskClass = (probability?: string) => {
 
         <button
           @click="gameStore.startAutoGame"
-          :disabled="gameStore.autoStatus === 'running'"
+          :disabled="
+            gameStore.autoStatus === 'running' ||
+            gameStore.manualStatus === 'running'
+          "
         >
           {{
             gameStore.autoStatus === "running"
@@ -121,6 +134,10 @@ const getRiskClass = (probability?: string) => {
         </button>
 
         <p class="status">Status: {{ gameStore.autoStatus }}</p>
+
+        <div v-if="gameStore.autoStatus === 'running'" class="actions">
+          <button @click="gameStore.endAutoGame">End Game</button>
+        </div>
       </article>
     </section>
 
@@ -198,8 +215,15 @@ const getRiskClass = (probability?: string) => {
             </div>
           </div>
 
-          <button @click="gameStore.solveMission(mission.missionId)">
-            Solve
+          <button
+            @click="gameStore.solveMission(mission.missionId)"
+            :disabled="gameStore.solvingMissionId !== null"
+          >
+            {{
+              gameStore.solvingMissionId === mission.missionId
+                ? "Solving..."
+                : "Solve"
+            }}
           </button>
         </article>
       </div>
@@ -212,9 +236,16 @@ const getRiskClass = (probability?: string) => {
     >
       <section class="modal">
         <div class="modal-header">
-          <h2>Shop</h2>
+          <div class="modal-header-top">
+            <h2>Shop</h2>
+            <button class="modal-close" @click="isShopOpen = false">
+              Close
+            </button>
+          </div>
 
-          <button class="modal-close" @click="isShopOpen = false">Close</button>
+          <p class="shop-hint">
+            Purchasing an item advances the game by one turn
+          </p>
         </div>
 
         <div class="shop-list">
@@ -230,9 +261,11 @@ const getRiskClass = (probability?: string) => {
 
             <button
               @click="gameStore.buyItem(item.id)"
-              :disabled="gameStore.gold < item.cost"
+              :disabled="
+                gameStore.gold < item.cost || gameStore.buyingItemId !== null
+              "
             >
-              Buy
+              {{ gameStore.buyingItemId === item.id ? "Buying..." : "Buy" }}
             </button>
           </article>
         </div>
