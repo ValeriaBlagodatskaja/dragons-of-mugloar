@@ -1,54 +1,93 @@
-# Dragons of Mugloar bot
+# Dragons of Mugloar
 
-A small TypeScript/Node.js client that plays the Dragons of Mugloar API game automatically.
+A full-stack TypeScript implementation of the Dragons of Mugloar challenge.
+
+The application supports both manual and automatic gameplay. In manual mode, the player can choose missions, buy shop items and use the recommended mission as decision support. Auto Play uses a risk-aware strategy to play the game automatically.
+
+## Tech stack
+
+- Frontend: Vue 3, TypeScript, Pinia, Vite
+- Backend: Node.js, Express, TypeScript
+- Testing: Vitest, Vue Test Utils, Supertest
 
 ## Approach
 
-The player:
+The automatic player:
 
-1. starts a new game;
-2. fetches the current message board;
-3. ranks missions primarily by estimated safety and secondarily by reward;
-4. solves the best available mission;
-5. buys healing items when lives are low and upgrades when there is enough spare gold;
-6. repeats until no lives remain.
+1. Starts a new game and fetches available missions.
+2. Prioritizes safe missions and chooses the highest-reward option among them.
+3. Uses medium-risk missions only when no safe option is available.
+4. Uses dangerous missions only as a last resort.
+5. Buys healing items when lives are low and upgrades when enough gold is available.
+6. Continues until the game ends.
 
-The strategy is intentionally isolated from the API client so it can be tested and tuned independently.
+The strategy is separated from the API client and game runner so it can be tested independently. The same strategy is used to highlight a **Recommended** mission in manual mode.
 
-> Note: some versions of the game API have returned a `probability` field on messages although it is not always visible in the public documentation. The implementation treats it as optional and remains functional if the field is missing.
+Local runs have exceeded the assignment target of **1,000 points**. Results vary because the game is probabilistic.
+
+> The API may return a `probability` field for missions although it is not always visible in the public documentation. The implementation treats it as optional.
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 22+
 - npm
 
 ## Run
 
+Install dependencies:
+
 ```bash
 npm install
+cd client
+npm install
+cd ..
+```
+
+Start the backend:
+
+```bash
+npm run dev:server
+```
+
+Start the frontend in another terminal:
+
+```bash
+cd client
 npm run dev
 ```
 
-Build and run compiled output:
+Frontend: `http://localhost:5173`  
+Backend: `http://localhost:3000`
+
+The automatic player can also be run directly from the command line:
 
 ```bash
-npm run build
-npm start
+npm run dev
 ```
 
-Tests:
+## Tests
+
+Run all tests:
+
+```bash
+npm run test:all
+```
+
+Or separately:
 
 ```bash
 npm test
+npm run test:client
 ```
 
-## What I would tune from live runs
+## Build
 
-The game is probabilistic, so the exact policy should be validated against several real games. The main parameters to tune are:
+```bash
+npm run build
+cd client
+npm run build
+```
 
-- which probability categories are safe enough to accept;
-- how much gold to reserve for healing;
-- when upgrades become more valuable than saving gold;
-- how to behave when the board contains no safe mission.
+## What I would improve next
 
-The goal is reliability rather than chasing the maximum score in one lucky run.
+With more time, I would evaluate the strategy across a larger number of games and further tune the mission and shop decisions. For a multi-user production environment, I would also make Auto Play state session-specific instead of keeping it in memory.
