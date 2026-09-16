@@ -9,17 +9,23 @@ import {
 import type {GameState} from './types.js';
 
 export class GameRunner {
+    private stopped = false;
+
     constructor(
         private readonly api = new MugloarApiClient(),
         private readonly onUpdate?: (state: GameState) => void,
     ) {
     }
 
+    stop(): void {
+        this.stopped = true;
+    }
+
     async run(): Promise<GameState> {
         let state = await this.api.startGame();
         this.onUpdate?.(state);
 
-        while (state.lives > 0) {
+        while (state.lives > 0 && !this.stopped) {
             state = await this.maybeShop(state);
             this.onUpdate?.(state);
             if (state.lives <= 0) break;
@@ -39,9 +45,11 @@ export class GameRunner {
             state = {...state, ...result};
             this.onUpdate?.(state);
             this.logSolve(selected.message, selected.probability, result.success, state);
+
+            await new Promise((resolve) => setTimeout(resolve, 800));
         }
 
-        console.log(`Game over: score=${state.score}, gold=${state.gold}, turn=${state.turn}, ives=${state.lives}`);
+        console.log(`Game over: score=${state.score}, gold=${state.gold}, turn=${state.turn}, lives=${state.lives}`);
         return state;
     }
 

@@ -1,22 +1,23 @@
 import cors from 'cors'
 import express from 'express'
 
-import { MugloarApiClient, MugloarApiError } from './apiClient.js'
-import { GameRunner } from './gameRunner.js'
-import { chooseBestMessage } from './strategy.js'
-import type { GameState } from './types.js'
+import {MugloarApiClient, MugloarApiError} from './apiClient.js'
+import {GameRunner} from './gameRunner.js'
+import {chooseBestMessage} from './strategy.js'
+import type {GameState} from './types.js'
 
 const app = express()
 const port = 3000
 const api = new MugloarApiClient()
 let autoGameState: GameState | null = null
 let autoGameStatus: 'idle' | 'running' | 'finished' | 'error' = 'idle'
+let autoGameRunner: GameRunner | null = null
 
 app.use(cors())
 app.use(express.json())
 
 app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok' })
+    res.json({status: 'ok'})
 })
 
 app.post('/api/game/start', async (_req, res) => {
@@ -32,7 +33,7 @@ app.post('/api/game/start', async (_req, res) => {
 
 app.post('/api/game/:gameId/missions/:missionId/solve', async (req, res) => {
     try {
-        const { gameId, missionId } = req.params
+        const {gameId, missionId} = req.params
 
         const result = await api.solve(gameId, missionId)
 
@@ -69,12 +70,12 @@ app.post('/api/game/:gameId/missions/:missionId/solve', async (req, res) => {
 
 app.get('/api/game/:gameId/messages', async (req, res) => {
     try {
-        const { gameId } = req.params
+        const {gameId} = req.params
 
         const messages = await api.getMessages(gameId)
         const recommendedMessage = chooseBestMessage(messages)
 
-        const mappedMessages = messages.map(({ adId, ...message }) => ({
+        const mappedMessages = messages.map(({adId, ...message}) => ({
             missionId: adId,
             ...message,
             recommended: adId === recommendedMessage?.adId,
@@ -93,7 +94,7 @@ app.get('/api/game/:gameId/messages', async (req, res) => {
 
 app.get('/api/game/:gameId/shop', async (req, res) => {
     try {
-        const { gameId } = req.params
+        const {gameId} = req.params
 
         const items = await api.getShop(gameId)
 
@@ -110,7 +111,7 @@ app.get('/api/game/:gameId/shop', async (req, res) => {
 
 app.post('/api/game/:gameId/shop/:itemId/buy', async (req, res) => {
     try {
-        const { gameId, itemId } = req.params
+        const {gameId, itemId} = req.params
 
         const result = await api.buy(gameId, itemId)
 
@@ -136,21 +137,55 @@ app.post('/api/auto-game/start', (_req, res) => {
     autoGameState = null
     autoGameStatus = 'running'
 
-    const runner = new GameRunner(undefined, (state) => {
-        autoGameState = state
+    let runner: GameRunner
+
+    runner = new GameRunner(undefined, (state) => {
+        if (autoGameRunner === runner) {
+            autoGameState = state
+        }
     })
+
+    autoGameRunner = runner
 
     runner.run()
         .then((state) => {
+            if (autoGameRunner !== runner) {
+                return
+            }
+
             autoGameState = state
             autoGameStatus = 'finished'
+            autoGameRunner = null
         })
         .catch((error) => {
+            if (autoGameRunner !== runner) {
+                return
+            }
+
             console.error('Automatic game failed:', error)
             autoGameStatus = 'error'
+            autoGameRunner = null
         })
 
     res.status(202).json({
+        status: autoGameStatus,
+    })
+})
+
+app.post('/api/auto-game/stop', (_req, res) => {
+    if (autoGameStatus !== 'running' || !autoGameRunner) {
+        res.status(409).json({
+            error: 'No automatic game is currently running',
+        })
+        return
+    }
+
+    autoGameRunner.stop()
+    autoGameStatus = 'idle'
+    autoGameState = null
+    autoGameRunner = null
+
+    res.json({
         status: autoGameStatus,
     })
 })
@@ -161,7 +196,6 @@ app.get('/api/auto-game/status', (_req, res) => {
         state: autoGameState,
     })
 })
-
 app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`)
 })
