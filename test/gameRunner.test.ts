@@ -1,6 +1,7 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 import {GameRunner} from '../src/gameRunner.js'
+import {MugloarApiError} from '../src/apiClient.js'
 import type {
     BuyResult,
     GameState,
@@ -355,5 +356,70 @@ describe('GameRunner', () => {
         expect(api.getMessages).not.toHaveBeenCalled()
         expect(api.solve).not.toHaveBeenCalled()
         expect(result).toEqual(initialState)
+    })
+
+    it('continues playing when solving a mission returns 400', async () => {
+        const mission: Message = {
+            adId: 'mission-1',
+            message: 'Unavailable mission',
+            reward: '100',
+            expiresIn: 5,
+            probability: 'Sure thing',
+        }
+
+        api.startGame.mockResolvedValue(initialState)
+        api.getShop.mockResolvedValue([])
+
+        api.getMessages
+            .mockResolvedValueOnce([mission])
+            .mockResolvedValueOnce([])
+
+        api.solve.mockRejectedValueOnce(
+            new MugloarApiError(
+                400,
+                'Mugloar API 400: Bad Request',
+            ),
+        )
+
+        const runner = new GameRunner(api as never)
+
+        const result = await runner.run()
+
+        expect(api.solve).toHaveBeenCalledWith(
+            'game-123',
+            'mission-1',
+        )
+
+        expect(api.getMessages).toHaveBeenCalledTimes(2)
+        expect(api.getShop).toHaveBeenCalledTimes(2)
+
+        expect(result).toEqual(initialState)
+    })
+
+    it('throws unexpected API errors', async () => {
+        const mission: Message = {
+            adId: 'mission-1',
+            message: 'Safe mission',
+            reward: '100',
+            expiresIn: 5,
+            probability: 'Sure thing',
+        }
+
+        api.startGame.mockResolvedValue(initialState)
+        api.getShop.mockResolvedValue([])
+        api.getMessages.mockResolvedValue([mission])
+
+        api.solve.mockRejectedValue(
+            new MugloarApiError(
+                500,
+                'Mugloar API 500: Internal Server Error',
+            ),
+        )
+
+        const runner = new GameRunner(api as never)
+
+        await expect(runner.run()).rejects.toThrow(
+            'Mugloar API 500',
+        )
     })
 })

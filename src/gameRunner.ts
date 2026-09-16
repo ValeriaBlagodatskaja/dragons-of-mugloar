@@ -1,4 +1,7 @@
-import {MugloarApiClient} from './apiClient.js';
+import {
+    MugloarApiClient,
+    MugloarApiError,
+} from './apiClient.js';
 import {
     chooseBestMessage,
     chooseHealingItem,
@@ -28,7 +31,10 @@ export class GameRunner {
         while (state.lives > 0 && !this.stopped) {
             state = await this.maybeShop(state);
             this.onUpdate?.(state);
-            if (state.lives <= 0) break;
+
+            if (state.lives <= 0) {
+                break;
+            }
 
             const messages = await this.api.getMessages(state.gameId);
             const selected =
@@ -40,11 +46,32 @@ export class GameRunner {
                 break;
             }
 
-            const result = await this.api.solve(state.gameId, selected.adId);
-            state = {...state, ...result};
-            this.onUpdate?.(state);
+            try {
+                const result = await this.api.solve(
+                    state.gameId,
+                    selected.adId,
+                );
 
-            await new Promise((resolve) => setTimeout(resolve, 800));
+                state = {...state, ...result};
+                this.onUpdate?.(state);
+            } catch (error) {
+                if (
+                    error instanceof MugloarApiError &&
+                    (error.status === 400 || error.status === 410)
+                ) {
+                    await new Promise((resolve) =>
+                        setTimeout(resolve, 800),
+                    );
+
+                    continue;
+                }
+
+                throw error;
+            }
+
+            await new Promise((resolve) =>
+                setTimeout(resolve, 800),
+            );
         }
 
         return state;
