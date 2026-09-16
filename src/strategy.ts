@@ -24,25 +24,57 @@ export function difficultyScore(probability?: string): number {
     return DIFFICULTY_SCORE[probability.trim().toLowerCase()] ?? 50;
 }
 
-export function missionScore(message: Message): number {
-    const safety = difficultyScore(message.probability);
-    const reward = parseReward(message.reward);
-    const urgencyBonus = message.expiresIn <= 2 ? 15 : message.expiresIn <= 5 ? 5 : 0;
-
-    // Safety dominates. Reward breaks ties among similarly safe tasks.
-    return safety * 1000 + reward * 2 + urgencyBonus;
-}
-
 export function chooseBestMessage(messages: Message[]): Message | undefined {
     return [...messages]
-        .filter((message) => difficultyScore(message.probability) >= 60)
-        .sort((a, b) => missionScore(b) - missionScore(a))[0];
+        .filter((message) => difficultyScore(message.probability) >= 80)
+        .sort((a, b) => {
+            const rewardDifference =
+                parseReward(b.reward) - parseReward(a.reward)
+
+            if (rewardDifference !== 0) {
+                return rewardDifference
+            }
+
+            return difficultyScore(b.probability) -
+                difficultyScore(a.probability)
+        })[0]
 }
 
 export function chooseFallbackMessage(messages: Message[]): Message | undefined {
     return [...messages]
-        .filter((message) => difficultyScore(message.probability) >= 20)
-        .sort((a, b) => missionScore(b) - missionScore(a))[0];
+        .filter((message) => {
+            const safety = difficultyScore(message.probability)
+            return safety >= 45 && safety < 80
+        })
+        .sort((a, b) => {
+            const safetyDifference =
+                difficultyScore(b.probability) -
+                difficultyScore(a.probability)
+
+            if (safetyDifference !== 0) {
+                return safetyDifference
+            }
+
+            return parseReward(b.reward) - parseReward(a.reward)
+        })[0]
+}
+
+export function chooseLastResortMessage(
+    messages: Message[],
+): Message | undefined {
+    return [...messages]
+        .filter((message) => difficultyScore(message.probability) < 45)
+        .sort((a, b) => {
+            const safetyDifference =
+                difficultyScore(b.probability) -
+                difficultyScore(a.probability)
+
+            if (safetyDifference !== 0) {
+                return safetyDifference
+            }
+
+            return parseReward(b.reward) - parseReward(a.reward)
+        })[0]
 }
 
 function isHealingItem(item: ShopItem): boolean {
@@ -63,10 +95,3 @@ export function chooseUpgrade(items: ShopItem[], gold: number): ShopItem | undef
         .sort((a, b) => b.cost - a.cost)[0];
 }
 
-export function chooseLastResortMessage(
-    messages: Message[],
-): Message | undefined {
-    return [...messages].sort(
-        (a, b) => missionScore(b) - missionScore(a),
-    )[0];
-}

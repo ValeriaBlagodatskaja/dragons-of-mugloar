@@ -6,8 +6,7 @@ import {GameRunner} from './gameRunner.js'
 import {chooseBestMessage} from './strategy.js'
 import type {GameState} from './types.js'
 
-const app = express()
-const port = 3000
+export const app = express()
 const api = new MugloarApiClient()
 let autoGameState: GameState | null = null
 let autoGameStatus: 'idle' | 'running' | 'finished' | 'error' = 'idle'
@@ -196,6 +195,4 @@ app.get('/api/auto-game/status', (_req, res) => {
         state: autoGameState,
     })
 })
-app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`)
-})
+

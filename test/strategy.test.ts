@@ -1,47 +1,75 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it} from 'vitest'
 import {
     chooseBestMessage,
     chooseFallbackMessage,
     chooseHealingItem,
-    chooseUpgrade,
     chooseLastResortMessage,
+    chooseUpgrade,
     difficultyScore,
     parseReward,
-} from '../src/strategy.js';
-import type {Message} from '../src/types.js';
+} from '../src/strategy.js'
+import type {Message} from '../src/types.js'
 
 describe('strategy', () => {
     it('parses rewards', () => {
-        expect(parseReward('123')).toBe(123);
-        expect(parseReward('x')).toBe(0);
-    });
+        expect(parseReward('123')).toBe(123)
+        expect(parseReward('x')).toBe(0)
+    })
 
     it('ranks known safe probabilities higher', () => {
         expect(difficultyScore('Piece of cake')).toBeGreaterThan(
             difficultyScore('Risky'),
-        );
-    });
+        )
+    })
 
-    it('prefers a safer mission over a much riskier one', () => {
+    it('chooses the highest reward among safe missions', () => {
+        const messages: Message[] = [
+            {
+                adId: 'very-safe',
+                message: 'Very safe task',
+                reward: '50',
+                expiresIn: 10,
+                probability: 'Piece of cake',
+            },
+            {
+                adId: 'safe-high-reward',
+                message: 'Safe task with better reward',
+                reward: '300',
+                expiresIn: 10,
+                probability: 'Quite likely',
+            },
+            {
+                adId: 'risky',
+                message: 'Risky task',
+                reward: '1000',
+                expiresIn: 10,
+                probability: 'Gamble',
+            },
+        ]
+
+        expect(chooseBestMessage(messages)?.adId).toBe('safe-high-reward')
+    })
+
+    it('does not choose a risky mission while a safe mission is available', () => {
         const messages: Message[] = [
             {
                 adId: 'safe',
-                message: 'safe',
-                reward: '80',
+                message: 'Safe task',
+                reward: '50',
                 expiresIn: 10,
                 probability: 'Sure thing',
             },
             {
                 adId: 'risky',
-                message: 'risky',
-                reward: '500',
+                message: 'Risky task',
+                reward: '1000',
                 expiresIn: 10,
-                probability: 'Risky',
+                probability: 'Gamble',
             },
-        ];
+        ]
 
-        expect(chooseBestMessage(messages)?.adId).toBe('safe');
-    });
+        expect(chooseBestMessage(messages)?.adId).toBe('safe')
+    })
 
     it('chooses an affordable healing item', () => {
         const item = chooseHealingItem(
@@ -50,10 +78,10 @@ describe('strategy', () => {
                 {id: 'hpot', name: 'Healing potion', cost: 40},
             ],
             45,
-        );
+        )
 
-        expect(item?.id).toBe('hpot');
-    });
+        expect(item?.id).toBe('hpot')
+    })
 
     it('keeps gold in reserve when choosing an upgrade', () => {
         const item = chooseUpgrade(
@@ -63,12 +91,12 @@ describe('strategy', () => {
                 {id: 'advanced', name: 'Advanced upgrade', cost: 300},
             ],
             200,
-        );
+        )
 
-        expect(item?.id).toBe('basic');
-    });
+        expect(item?.id).toBe('basic')
+    })
 
-    it('chooses a reasonable fallback when no safe mission is available', () => {
+    it('chooses a fallback only when no safe mission is available', () => {
         const messages: Message[] = [
             {
                 adId: 'gamble',
@@ -84,10 +112,32 @@ describe('strategy', () => {
                 expiresIn: 5,
                 probability: 'Suicide mission',
             },
-        ];
+        ]
 
-        expect(chooseFallbackMessage(messages)?.adId).toBe('gamble');
-    });
+        expect(chooseBestMessage(messages)).toBeUndefined()
+        expect(chooseFallbackMessage(messages)?.adId).toBe('gamble')
+    })
+
+    it('prefers the safer mission within the fallback tier', () => {
+        const messages: Message[] = [
+            {
+                adId: 'hmmm',
+                message: 'Medium risk task',
+                reward: '50',
+                expiresIn: 5,
+                probability: 'Hmmm....',
+            },
+            {
+                adId: 'gamble',
+                message: 'Higher risk task',
+                reward: '500',
+                expiresIn: 5,
+                probability: 'Gamble',
+            },
+        ]
+
+        expect(chooseFallbackMessage(messages)?.adId).toBe('hmmm')
+    })
 
     it('avoids extremely dangerous fallback missions', () => {
         const messages: Message[] = [
@@ -105,12 +155,12 @@ describe('strategy', () => {
                 expiresIn: 5,
                 probability: 'Suicide mission',
             },
-        ];
+        ]
 
-        expect(chooseFallbackMessage(messages)).toBeUndefined();
-    });
+        expect(chooseFallbackMessage(messages)).toBeUndefined()
+    })
 
-    it('chooses the best available mission as a last resort', () => {
+    it('chooses the safest available mission as a last resort', () => {
         const messages: Message[] = [
             {
                 adId: 'fire',
@@ -126,8 +176,8 @@ describe('strategy', () => {
                 expiresIn: 5,
                 probability: 'Suicide mission',
             },
-        ];
+        ]
 
-        expect(chooseLastResortMessage(messages)?.adId).toBe('fire');
-    });
-});
+        expect(chooseLastResortMessage(messages)?.adId).toBe('fire')
+    })
+})
