@@ -178,9 +178,10 @@ describe('GameRunner', () => {
         })
     })
 
-    it('buys the best affordable upgrade while keeping gold in reserve', async () => {
+    it('buys the best affordable upgrade after reaching 1000 points', async () => {
         const state: GameState = {
             ...initialState,
+            score: 1000,
             gold: 500,
         }
 
@@ -224,6 +225,32 @@ describe('GameRunner', () => {
             level: 1,
             turn: 1,
         })
+    })
+
+    it('does not buy an upgrade before reaching 1000 points', async () => {
+        const state: GameState = {
+            ...initialState,
+            score: 999,
+            gold: 500,
+        }
+
+        const upgrade: ShopItem = {
+            id: 'advanced',
+            name: 'Advanced Upgrade',
+            cost: 300,
+        }
+
+        api.startGame.mockResolvedValue(state)
+        api.getShop.mockResolvedValue([upgrade])
+        api.getMessages.mockResolvedValue([])
+
+        const runner = new GameRunner(api as never)
+
+        const result = await runner.run()
+
+        expect(api.buy).not.toHaveBeenCalled()
+        expect(api.getMessages).toHaveBeenCalledWith('game-123')
+        expect(result).toEqual(state)
     })
 
     it('stops when there are no available missions', async () => {

@@ -55,16 +55,30 @@ export class GameRunner {
 
         if (state.lives <= 2) {
             const healingItem = chooseHealingItem(items, state.gold);
+
             if (healingItem) {
-                const result = await this.api.buy(state.gameId, healingItem.id);
+                const result = await this.api.buy(
+                    state.gameId,
+                    healingItem.id,
+                );
+
                 return {...state, ...result};
             }
         }
 
-        if (state.lives >= 3 && state.gold >= 200) {
+        if (
+            state.score >= 1000 &&
+            state.lives >= 3 &&
+            state.gold >= 200
+        ) {
             const upgrade = chooseUpgrade(items, state.gold);
+
             if (upgrade) {
-                const result = await this.api.buy(state.gameId, upgrade.id);
+                const result = await this.api.buy(
+                    state.gameId,
+                    upgrade.id,
+                );
+
                 return {...state, ...result};
             }
         }
