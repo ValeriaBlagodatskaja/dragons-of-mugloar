@@ -77,6 +77,7 @@ describe("gameStore", () => {
           score: 250,
           lives: 3,
           gold: 40,
+          level: 2,
         }),
       }),
     );
@@ -86,6 +87,7 @@ describe("gameStore", () => {
     expect(store.score).toBe(250);
     expect(store.lives).toBe(3);
     expect(store.gold).toBe(40);
+    expect(store.level).toBe(2);
     expect(store.error).toBeNull();
 
     expect(fetch).toHaveBeenCalledWith(
@@ -159,11 +161,13 @@ describe("gameStore", () => {
     expect(store.loadMessages).toHaveBeenCalledOnce();
   });
 
-  it("buys a shop item and updates the game state", async () => {
+  it("buys a shop item and refreshes the game state", async () => {
     const store = useGameStore();
 
     store.gameId = "test-game";
     store.gold = 100;
+    store.lives = 3;
+    store.level = 0;
     store.shopItems = [
       {
         id: "hpot",
@@ -195,6 +199,15 @@ describe("gameStore", () => {
     expect(store.lives).toBe(4);
     expect(store.level).toBe(0);
     expect(store.error).toBeNull();
+
+    expect(store.purchaseResult).toEqual({
+      itemName: "Healing potion",
+      goldSpent: 50,
+      livesGained: 1,
+      levelsGained: 0,
+    });
+
+    expect(store.buyingItemId).toBeNull();
 
     expect(fetch).toHaveBeenCalledWith(
       apiUrl("/api/game/test-game/shop/hpot/buy"),
@@ -248,6 +261,24 @@ describe("gameStore", () => {
     expect(store.purchaseResult).toBeNull();
   });
 
+  it("resets the buying state when a purchase request fails", async () => {
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+      }),
+    );
+
+    await store.buyItem("hpot");
+
+    expect(store.error).toBe("Could not purchase this item");
+    expect(store.buyingItemId).toBeNull();
+  });
+
   it("ends the manual game when the last life is lost", async () => {
     const store = useGameStore();
 
@@ -274,6 +305,7 @@ describe("gameStore", () => {
           score: 100,
           lives: 0,
           gold: 20,
+          level: 1,
         }),
       }),
     );
@@ -283,6 +315,7 @@ describe("gameStore", () => {
     expect(store.lives).toBe(0);
     expect(store.gameOver).toBe(true);
     expect(store.messages).toEqual([]);
+    expect(store.level).toBe(1);
     expect(store.missionResult?.livesRemaining).toBe(0);
   });
 

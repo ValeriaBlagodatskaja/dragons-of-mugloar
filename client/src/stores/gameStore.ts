@@ -258,6 +258,7 @@ export const useGameStore = defineStore("game", {
         this.score = result.score;
         this.lives = result.lives;
         this.gold = result.gold;
+        this.level = result.level;
 
         this.missionResult = {
           success: result.success,

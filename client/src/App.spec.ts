@@ -123,7 +123,7 @@ describe("App", () => {
       },
     });
 
-    await wrapper.get(".actions button").trigger("click");
+    await wrapper.get(".shop-button").trigger("click");
 
     const buyButtons = wrapper.findAll(".shop-card button");
 
@@ -202,5 +202,113 @@ describe("App", () => {
     expect(store.gold).toBe(0);
     expect(store.lives).toBe(3);
     expect(store.level).toBe(0);
+  });
+
+  it("shows mission risk levels with the correct classes", () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const store = useGameStore();
+
+    store.messages = [
+      {
+        missionId: "safe",
+        message: "Safe mission",
+        reward: "50",
+        expiresIn: 5,
+        probability: "Sure thing",
+        recommended: true,
+      },
+      {
+        missionId: "medium",
+        message: "Medium mission",
+        reward: "100",
+        expiresIn: 4,
+        probability: "Gamble",
+        recommended: false,
+      },
+      {
+        missionId: "dangerous",
+        message: "Dangerous mission",
+        reward: "500",
+        expiresIn: 3,
+        probability: "Playing with fire",
+        recommended: false,
+      },
+    ];
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+      },
+    });
+
+    const probabilities = wrapper.findAll(".probability");
+
+    expect(probabilities[0].classes()).toContain("risk-low");
+    expect(probabilities[1].classes()).toContain("risk-medium");
+    expect(probabilities[2].classes()).toContain("risk-high");
+  });
+
+  it("keeps mission solve actions visible after closing the shop", async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const store = useGameStore();
+
+    store.gameId = "test-game";
+    store.manualStatus = "running";
+    store.gold = 100;
+
+    store.messages = [
+      {
+        missionId: "mission-1",
+        message: "Rescue the princess",
+        reward: "100",
+        expiresIn: 5,
+        probability: "Piece of cake",
+        recommended: true,
+      },
+      {
+        missionId: "mission-2",
+        message: "Fight the giant",
+        reward: "200",
+        expiresIn: 3,
+        probability: "Gamble",
+        recommended: false,
+      },
+    ];
+
+    store.shopItems = [
+      {
+        id: "hpot",
+        name: "Healing potion",
+        cost: 50,
+      },
+    ];
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+      },
+    });
+
+    const openShopButton = wrapper.find(".shop-button");
+
+    expect(openShopButton.exists()).toBe(true);
+
+    await openShopButton.trigger("click");
+
+    expect(wrapper.find(".modal").exists()).toBe(true);
+
+    await wrapper.get(".modal-close").trigger("click");
+
+    expect(wrapper.find(".modal").exists()).toBe(false);
+
+    const solveButtons = wrapper.findAll(".mission-card > button");
+
+    expect(solveButtons).toHaveLength(2);
+    expect(solveButtons[0].text()).toBe("Solve");
+    expect(solveButtons[1].text()).toBe("Solve");
   });
 });

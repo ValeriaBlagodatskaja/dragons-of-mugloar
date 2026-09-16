@@ -110,7 +110,11 @@ const getRiskClass = (probability?: string) => {
           "
           class="actions"
         >
-          <button @click="isShopOpen = true">Open Shop</button>
+          <button class="shop-button" @click="isShopOpen = true">
+            <span aria-hidden="true">◆</span>
+            Open Shop
+          </button>
+
           <button @click="gameStore.endManualGame">End Game</button>
         </div>
       </article>
@@ -132,8 +136,6 @@ const getRiskClass = (probability?: string) => {
               : "Start Auto Game"
           }}
         </button>
-
-        <p class="status">Status: {{ gameStore.autoStatus }}</p>
 
         <div v-if="gameStore.autoStatus === 'running'" class="actions">
           <button @click="gameStore.endAutoGame">End Game</button>
